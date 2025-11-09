@@ -2,6 +2,11 @@
 
 Utility scripts for exporting LandIS metadata records to ISO 19139 XML files.
 
+http://www.landis.org.uk
+
+Author: Stephen Hallett, Cranfield University
+Date: 9-11-2025
+
 ## Prerequisites
 
 - Python 3.11 or newer
