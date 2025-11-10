@@ -1,3 +1,5 @@
+#.gitignore - files to ignore when uploading to git
+
 # Virtual environment
 venv/
 .venv/
@@ -13,4 +15,5 @@ __pycache__/
 output/
 *.xml
 
-
+# Helper files
+helper_files/
