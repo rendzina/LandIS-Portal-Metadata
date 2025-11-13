@@ -1,4 +1,8 @@
 """
-Tools for exporting LandIS metadata records to ISO 19139 XML.
+Project: LandIS Portal
+Institution: Cranfield University
+Author: Professor Stephen Hallett
+
+Package initialisation for metadata export tooling.
 """
 

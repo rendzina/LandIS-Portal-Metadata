@@ -1,3 +1,11 @@
+"""
+Project: LandIS Portal
+Institution: Cranfield University
+Author: Professor Stephen Hallett
+
+Database access helpers for retrieving LandIS metadata assets.
+"""
+
 from __future__ import annotations
 
 import os
@@ -9,6 +17,11 @@ Cursor = Any
 
 
 def init_oracle_client_if_available() -> None:
+    """Initialise the Oracle client when a library directory is available.
+
+    Returns:
+        None. Side effects occur through driver initialisation.
+    """
     lib_dir = os.environ.get("ORACLE_CLIENT_LIB_DIR")
     if lib_dir:
         driver = _get_driver()
@@ -16,6 +29,14 @@ def init_oracle_client_if_available() -> None:
 
 
 def _get_driver() -> Any:
+    """Import the python-oracledb driver, raising a helpful error if missing.
+
+    Returns:
+        Loaded python-oracledb module reference.
+
+    Raises:
+        ModuleNotFoundError: If python-oracledb is not installed.
+    """
     try:
         return importlib.import_module("oracledb")
     except ModuleNotFoundError:  # pragma: no cover - safety for missing dependency
@@ -25,6 +46,14 @@ def _get_driver() -> Any:
 
 
 def create_connection() -> "Connection":
+    """Create a database connection using Oracle-related environment variables.
+
+    Returns:
+        Active Oracle database connection.
+
+    Raises:
+        EnvironmentError: If required credentials are absent.
+    """
     driver = _get_driver()
     user = os.environ.get("ORACLE_USER")
     password = os.environ.get("ORACLE_PASSWORD")
@@ -40,6 +69,14 @@ def create_connection() -> "Connection":
 
 
 def _rows_to_dicts(cursor: "Cursor") -> list[dict[str, Any]]:
+    """Convert database cursor rows into dictionaries keyed by column name.
+
+    Parameters:
+        cursor: Database cursor containing row data and description metadata.
+
+    Returns:
+        Normalised rows keyed by lowercase column names.
+    """
     column_names = [description[0].lower() for description in cursor.description]
     return [dict(zip(column_names, row, strict=True)) for row in cursor]
 
@@ -47,6 +84,15 @@ def _rows_to_dicts(cursor: "Cursor") -> list[dict[str, Any]]:
 def fetch_main_record(
     connection: "Connection", metadata_id: str
 ) -> dict[str, Any] | None:
+    """Fetch the main metadata record for a given identifier.
+
+    Parameters:
+        connection: Active Oracle database connection.
+        metadata_id: Metadata identifier to locate.
+
+    Returns:
+        Mapping describing the primary metadata record, or None when missing.
+    """
     sql = """
         SELECT
             METADATA_ID,
@@ -77,6 +123,15 @@ def fetch_main_record(
 
 
 def fetch_group(connection: "Connection", group_id: str) -> dict[str, Any] | None:
+    """Retrieve the metadata group record associated with a group identifier.
+
+    Parameters:
+        connection: Active Oracle database connection.
+        group_id: Identifier for the metadata group.
+
+    Returns:
+        Mapping of group attributes, or None if the group does not exist.
+    """
     sql = """
         SELECT
             GROUP_ID,
@@ -100,6 +155,15 @@ def fetch_group(connection: "Connection", group_id: str) -> dict[str, Any] | Non
 def fetch_citation(
     connection: "Connection", citation_id: str
 ) -> dict[str, Any] | None:
+    """Retrieve a citation record for a supplied citation identifier.
+
+    Parameters:
+        connection: Active Oracle database connection.
+        citation_id: Identifier for the citation to return.
+
+    Returns:
+        Mapping of citation fields, or None if no match is found.
+    """
     sql = """
         SELECT
             CITATION_ID,
@@ -126,6 +190,15 @@ def fetch_citation(
 def fetch_attributes(
     connection: "Connection", metadata_id: str
 ) -> list[dict[str, Any]]:
+    """Retrieve attribute metadata linked to a metadata identifier.
+
+    Parameters:
+        connection: Active Oracle database connection.
+        metadata_id: Identifier for the parent metadata record.
+
+    Returns:
+        List of attribute dictionaries ordered for readability.
+    """
     sql = """
         SELECT
             METADATA_ID,
@@ -151,6 +224,15 @@ def fetch_attributes(
 def fetch_keywords(
     connection: "Connection", metadata_id: str
 ) -> list[dict[str, Any]]:
+    """Retrieve keyword metadata linked to a metadata identifier.
+
+    Parameters:
+        connection: Active Oracle database connection.
+        metadata_id: Identifier for the parent metadata record.
+
+    Returns:
+        List of keyword dictionaries grouped by type.
+    """
     sql = """
         SELECT
             METADATA_ID,
@@ -169,6 +251,15 @@ def fetch_keywords(
 def fetch_sources(
     connection: "Connection", metadata_id: str
 ) -> list[dict[str, Any]]:
+    """Retrieve source metadata linked to a metadata identifier.
+
+    Parameters:
+        connection: Active Oracle database connection.
+        metadata_id: Identifier for the parent metadata record.
+
+    Returns:
+        List of source dictionaries joined to human-readable attributes.
+    """
     sql = """
         SELECT
             ms.ID,
@@ -194,6 +285,15 @@ def fetch_sources(
 def fetch_source_citations(
     connection: "Connection", source_ids: list[str]
 ) -> dict[str, list[dict[str, Any]]]:
+    """Fetch citations related to multiple source identifiers.
+
+    Parameters:
+        connection: Active Oracle database connection.
+        source_ids: Source identifiers requiring citation lookups.
+
+    Returns:
+        Mapping from source identifier to citation rows.
+    """
     if not source_ids:
         return {}
 
@@ -222,6 +322,15 @@ def fetch_source_citations(
 def fetch_citations_for_ids(
     connection: "Connection", citation_ids: list[str]
 ) -> dict[str, dict[str, Any]]:
+    """Fetch citation records for a list of citation identifiers.
+
+    Parameters:
+        connection: Active Oracle database connection.
+        citation_ids: Citation identifiers to fetch.
+
+    Returns:
+        Mapping from citation identifier to citation details.
+    """
     if not citation_ids:
         return {}
 
@@ -258,6 +367,17 @@ def fetch_metadata_bundle(
     include_sources: bool = True,
     include_keywords: bool = True,
 ) -> dict[str, Any]:
+    """Compile the metadata bundle required for XML export routines.
+
+    Parameters:
+        connection: Active Oracle database connection.
+        metadata_id: Identifier for the metadata record to export.
+        include_sources: Flag controlling inclusion of source records.
+        include_keywords: Flag controlling inclusion of keyword records.
+
+    Returns:
+        Aggregated metadata bundle ready for XML serialisation.
+    """
     bundle: dict[str, Any] = {"metadata_id": metadata_id}
 
     main = fetch_main_record(connection, metadata_id)

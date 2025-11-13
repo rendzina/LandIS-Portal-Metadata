@@ -1,3 +1,11 @@
+"""
+Project: LandIS Portal
+Institution: Cranfield University
+Author: Professor Stephen Hallett
+
+XML construction utilities for ISO 19139 metadata serialisation.
+"""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -19,10 +27,27 @@ for prefix, uri in NAMESPACES.items():
 
 
 def _qn(prefix: str, tag: str) -> str:
+    """Build a fully qualified XML tag name for a registered namespace.
+
+    Parameters:
+        prefix: Namespace prefix defined in the NAMESPACES mapping.
+        tag: Local tag name to qualify.
+
+    Returns:
+        Expanded tag name suitable for ElementTree operations.
+    """
     return f"{{{NAMESPACES[prefix]}}}{tag}"
 
 
 def _character_string(text: str | None) -> ET.Element:
+    """Wrap text in a gco:CharacterString element, handling blank values.
+
+    Parameters:
+        text: Raw string content to wrap; blanks result in empty elements.
+
+    Returns:
+        Element containing the provided text or remaining empty.
+    """
     element = ET.Element(_qn("gco", "CharacterString"))
     if text is not None:
         element.text = text
@@ -30,6 +55,17 @@ def _character_string(text: str | None) -> ET.Element:
 
 
 def _optional_element(parent: ET.Element, prefix: str, tag: str, text: str | None) -> None:
+    """Attach a text element when text is supplied, otherwise skip creation.
+
+    Parameters:
+        parent: Element that will receive the child.
+        prefix: Namespace prefix for the child element.
+        tag: Tag name for the child element.
+        text: Optional text to include within the child.
+
+    Returns:
+        None. Modifies the parent element in place.
+    """
     if text is None or text == "":
         return
     child = ET.SubElement(parent, _qn(prefix, tag))
@@ -37,6 +73,14 @@ def _optional_element(parent: ET.Element, prefix: str, tag: str, text: str | Non
 
 
 def _format_date(value: Any) -> str | None:
+    """Normalise supported date-like values into ISO formatted strings.
+
+    Parameters:
+        value: Date, datetime, or text value requiring normalisation.
+
+    Returns:
+        ISO formatted date string, or None when conversion is not possible.
+    """
     if value is None:
         return None
     if isinstance(value, date):
@@ -49,6 +93,18 @@ def _format_date(value: Any) -> str | None:
 
 @dataclass(slots=True)
 class BuildOptions:
+    """Optional overrides controlling metadata XML generation.
+
+    Attributes:
+        language_code: ISO language code used for metadata language elements.
+        character_set: Declared character set identifier for the document.
+        hierarchy_level: Hierarchy scope code describing the metadata record.
+        date_stamp: Optional override for the metadata date stamp.
+        contact_name: Optional contact person name.
+        contact_organisation: Optional contact organisation name.
+        contact_email: Optional contact e-mail address.
+    """
+
     language_code: str = "eng"
     character_set: str = "utf8"
     hierarchy_level: str = "dataset"
@@ -59,6 +115,15 @@ class BuildOptions:
 
 
 def build_metadata_tree(bundle: dict[str, Any], options: BuildOptions | None = None) -> ET.ElementTree:
+    """Construct an ISO 19139 metadata tree for a prepared bundle.
+
+    Parameters:
+        bundle: Aggregated metadata content retrieved from the database layer.
+        options: Optional overrides for metadata presentation defaults.
+
+    Returns:
+        ElementTree representing the final metadata document.
+    """
     options = options or BuildOptions()
 
     root = ET.Element(_qn("gmd", "MD_Metadata"))
@@ -79,11 +144,29 @@ def build_metadata_tree(bundle: dict[str, Any], options: BuildOptions | None = N
 
 
 def _build_file_identifier(root: ET.Element, bundle: dict[str, Any]) -> None:
+    """Populate the file identifier element.
+
+    Parameters:
+        root: Metadata root element to populate.
+        bundle: Metadata bundle containing the identifier.
+
+    Returns:
+        None. Updates the XML tree in place.
+    """
     file_identifier = ET.SubElement(root, _qn("gmd", "fileIdentifier"))
     file_identifier.append(_character_string(bundle["metadata_id"]))
 
 
 def _build_language(root: ET.Element, language_code: str) -> None:
+    """Populate the language element.
+
+    Parameters:
+        root: Metadata root element to populate.
+        language_code: ISO language code associated with the metadata.
+
+    Returns:
+        None. Updates the XML tree in place.
+    """
     language = ET.SubElement(root, _qn("gmd", "language"))
     lang_code_element = ET.SubElement(language, _qn("gmd", "LanguageCode"))
     lang_code_element.set("codeList", "http://standards.iso.org/ittf/PubliclyAvailableStandards/ISO_19139_Schemas/resources/Codelist/ML_gmxCodelists.xml#LanguageCode")
@@ -92,6 +175,15 @@ def _build_language(root: ET.Element, language_code: str) -> None:
 
 
 def _build_character_set(root: ET.Element, character_set: str) -> None:
+    """Populate the character set element.
+
+    Parameters:
+        root: Metadata root element to populate.
+        character_set: Character set identifier to declare.
+
+    Returns:
+        None. Updates the XML tree in place.
+    """
     character_set_element = ET.SubElement(root, _qn("gmd", "characterSet"))
     charset = ET.SubElement(character_set_element, _qn("gmd", "MD_CharacterSetCode"))
     charset.set("codeList", "http://www.isotc211.org/2005/resources/codeList.xml#MD_CharacterSetCode")
@@ -99,6 +191,15 @@ def _build_character_set(root: ET.Element, character_set: str) -> None:
 
 
 def _build_hierarchy_level(root: ET.Element, hierarchy_level: str) -> None:
+    """Populate the hierarchy level element.
+
+    Parameters:
+        root: Metadata root element to populate.
+        hierarchy_level: Scope code describing the metadata hierarchy.
+
+    Returns:
+        None. Updates the XML tree in place.
+    """
     hierarchy_level_element = ET.SubElement(root, _qn("gmd", "hierarchyLevel"))
     scope = ET.SubElement(hierarchy_level_element, _qn("gmd", "MD_ScopeCode"))
     scope.set("codeList", "http://standards.iso.org/ittf/PubliclyAvailableStandards/ISO_19139_Schemas/resources/Codelist/ML_gmxCodelists.xml#MD_ScopeCode")
@@ -107,6 +208,16 @@ def _build_hierarchy_level(root: ET.Element, hierarchy_level: str) -> None:
 
 
 def _build_contact(root: ET.Element, bundle: dict[str, Any], options: BuildOptions) -> None:
+    """Populate contact information using bundle data and override options.
+
+    Parameters:
+        root: Metadata root element to populate.
+        bundle: Metadata bundle containing default contact references.
+        options: Optional overrides for contact details.
+
+    Returns:
+        None. Updates the XML tree in place.
+    """
     contact_element = ET.SubElement(root, _qn("gmd", "contact"))
     responsible_party = ET.SubElement(contact_element, _qn("gmd", "CI_ResponsibleParty"))
 
@@ -134,6 +245,15 @@ def _build_contact(root: ET.Element, bundle: dict[str, Any], options: BuildOptio
 
 
 def _build_date_stamp(root: ET.Element, date_stamp: date | None) -> None:
+    """Populate the date stamp element with an explicit or current date.
+
+    Parameters:
+        root: Metadata root element to populate.
+        date_stamp: Optional override for the date stamp value.
+
+    Returns:
+        None. Updates the XML tree in place.
+    """
     if date_stamp is None:
         date_value = date.today()
     else:
@@ -145,6 +265,14 @@ def _build_date_stamp(root: ET.Element, date_stamp: date | None) -> None:
 
 
 def _build_reference_system(root: ET.Element) -> None:
+    """Populate reference system metadata.
+
+    Parameters:
+        root: Metadata root element to populate.
+
+    Returns:
+        None. Updates the XML tree in place.
+    """
     reference_system_info = ET.SubElement(root, _qn("gmd", "referenceSystemInfo"))
     md_reference_system = ET.SubElement(reference_system_info, _qn("gmd", "MD_ReferenceSystem"))
     identifier = ET.SubElement(md_reference_system, _qn("gmd", "referenceSystemIdentifier"))
@@ -154,6 +282,15 @@ def _build_reference_system(root: ET.Element) -> None:
 
 
 def _build_identification_info(root: ET.Element, bundle: dict[str, Any]) -> None:
+    """Populate identification information using the main metadata bundle.
+
+    Parameters:
+        root: Metadata root element to populate.
+        bundle: Metadata bundle containing primary descriptive data.
+
+    Returns:
+        None. Updates the XML tree in place.
+    """
     main = bundle["main"]
     group = bundle.get("group")
     citation = bundle.get("citation")
@@ -220,6 +357,14 @@ def _build_identification_info(root: ET.Element, bundle: dict[str, Any]) -> None
 
 
 def _group_keywords_by_type(keywords: Iterable[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
+    """Group keyword records by their declared type.
+
+    Parameters:
+        keywords: Iterable of keyword dictionaries sourced from the database.
+
+    Returns:
+        Mapping between keyword type and list of keyword records.
+    """
     grouped: dict[str, list[dict[str, Any]]] = {}
     for keyword in keywords:
         keyword_type = (keyword.get("keyword_type") or "").strip()
@@ -228,6 +373,15 @@ def _group_keywords_by_type(keywords: Iterable[dict[str, Any]]) -> dict[str, lis
 
 
 def _build_constraints(parent: ET.Element, group: dict[str, Any] | None) -> None:
+    """Populate constraint elements when group data is available.
+
+    Parameters:
+        parent: Identification element receiving constraint information.
+        group: Metadata group record containing constraint details.
+
+    Returns:
+        None. Updates the XML tree in place.
+    """
     if not group:
         return
 
@@ -248,6 +402,15 @@ def _build_constraints(parent: ET.Element, group: dict[str, Any] | None) -> None
 
 
 def _build_spatial_representation(parent: ET.Element, main: dict[str, Any]) -> None:
+    """Populate spatial representation using the metadata facing value.
+
+    Parameters:
+        parent: Identification element receiving spatial metadata.
+        main: Main metadata record containing spatial representation info.
+
+    Returns:
+        None. Updates the XML tree in place.
+    """
     spatial_type = main.get("metadata_facing")
     if not spatial_type:
         return
@@ -260,6 +423,15 @@ def _build_spatial_representation(parent: ET.Element, main: dict[str, Any]) -> N
 
 
 def _build_extent(parent: ET.Element, main: dict[str, Any]) -> None:
+    """Populate geographic and temporal extent details.
+
+    Parameters:
+        parent: Identification element receiving extent definitions.
+        main: Main metadata record containing extent boundaries and dates.
+
+    Returns:
+        None. Updates the XML tree in place.
+    """
     bounds = (
         main.get("west_bounding_coordinate"),
         main.get("east_bounding_coordinate"),
@@ -302,6 +474,15 @@ def _build_extent(parent: ET.Element, main: dict[str, Any]) -> None:
 
 
 def _build_distribution(root: ET.Element, bundle: dict[str, Any]) -> None:
+    """Populate distribution information including format details.
+
+    Parameters:
+        root: Metadata root element to populate.
+        bundle: Metadata bundle containing citation and distribution data.
+
+    Returns:
+        None. Updates the XML tree in place.
+    """
     citation = bundle.get("citation") or {}
 
     distribution_info = ET.SubElement(root, _qn("gmd", "distributionInfo"))
@@ -319,6 +500,15 @@ def _build_distribution(root: ET.Element, bundle: dict[str, Any]) -> None:
 
 
 def _build_data_quality(root: ET.Element, bundle: dict[str, Any]) -> None:
+    """Populate data quality information including lineage sources.
+
+    Parameters:
+        root: Metadata root element to populate.
+        bundle: Metadata bundle containing group and source data.
+
+    Returns:
+        None. Updates the XML tree in place.
+    """
     group = bundle.get("group") or {}
     sources = bundle.get("sources", [])
     citation_lookup = bundle.get("citation_lookup", {})
@@ -377,6 +567,14 @@ def _build_data_quality(root: ET.Element, bundle: dict[str, Any]) -> None:
 
 
 def _build_ci_citation(citation: dict[str, Any]) -> ET.Element:
+    """Build a citation element for lineage or distribution references.
+
+    Parameters:
+        citation: Citation record describing publication details.
+
+    Returns:
+        Prepared Element representing the citation segment.
+    """
     ci_citation = ET.Element(_qn("gmd", "CI_Citation"))
     title = ET.SubElement(ci_citation, _qn("gmd", "title"))
     title.append(_character_string(citation.get("citation_title")))
@@ -402,6 +600,15 @@ def _build_ci_citation(citation: dict[str, Any]) -> ET.Element:
 
 
 def _build_extension_info(root: ET.Element, bundle: dict[str, Any]) -> None:
+    """Populate metadata extension details derived from attribute records.
+
+    Parameters:
+        root: Metadata root element to populate.
+        bundle: Metadata bundle containing attribute definitions.
+
+    Returns:
+        None. Updates the XML tree in place.
+    """
     attributes = bundle.get("attributes", [])
     if not attributes:
         return

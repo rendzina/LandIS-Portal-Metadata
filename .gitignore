@@ -1,4 +1,7 @@
-#.gitignore - files to ignore when uploading to git
+# Project: LandIS Portal
+# Institution: Cranfield University
+# Author: Professor Stephen Hallett
+# .gitignore - files to ignore when uploading to git
 
 # Virtual environment
 venv/

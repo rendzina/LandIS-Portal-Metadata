@@ -2,11 +2,11 @@
 
 Utility scripts for exporting LandIS metadata records to ISO 19139 XML files.
 
+Project: LandIS Portal
+Institution: Cranfield University
+Author: Professor Stephen Hallett
 http://www.landis.org.uk
 
-Author: Stephen Hallett, Cranfield University
-
-Date: 9-11-2025
 
 ## Prerequisites
 
@@ -24,7 +24,7 @@ Date: 9-11-2025
    - **Command Prompt:** `venv\Scripts\activate.bat`
    - **PowerShell:** `.\venv\Scripts\Activate.ps1`
    - **Git Bash or other POSIX shells:** `source venv/Scripts/activate`
-3. Install dependencies:
+3. Install the two key dependencies:
    ```
    pip install oracledb python-dotenv
    ```
@@ -52,7 +52,7 @@ python -m metadata_exporter.export_metadata --config config\metadata_ids.csv --o
 - Use `--dry-run` to fetch data without writing XML files.
 - Override `--config`, `--output-dir`, or `--env-file` to point at alternative locations.
 
-Each metadata identifier listed in `config\metadata_ids.csv` results in one XML file under the output directory.
+Each metadata identifier listed in `config\metadata_ids.csv` results in one XML file under the output directory. Comment lines beginning with `#` are ignored.
 
 ## Oracle Instant Client (Optional)
 
@@ -68,5 +68,3 @@ If the host requires Instant Client, download and extract it, then point `ORACLE
 
 - Code follows `black`-compatible formatting and PEP 8 guidelines.
 - Keep new features modular to aid future expandability (for example, Vision requests).
-
-

@@ -1,5 +1,13 @@
 from __future__ import annotations
 
+"""
+Project: LandIS Portal
+Institution: Cranfield University
+Author: Professor Stephen Hallett
+
+Configuration loading utilities for metadata export workflows.
+"""
+
 from dataclasses import dataclass
 from pathlib import Path
 import csv
@@ -7,12 +15,23 @@ import csv
 
 @dataclass(frozen=True, slots=True)
 class MetadataExportConfig:
+    """Configuration for exporting a single metadata record."""
+
     metadata_id: str
     include_sources: bool = True
     include_keywords: bool = True
 
 
 def _parse_bool(value: str | None, default: bool) -> bool:
+    """Convert a string value to a boolean, falling back to a default.
+
+    Parameters:
+        value: Raw value sourced from the configuration CSV.
+        default: Fallback applied when the value is blank or unrecognised.
+
+    Returns:
+        Normalised boolean reflecting the input or default.
+    """
     if value is None or value == "":
         return default
     normalised = value.strip().lower()
@@ -24,13 +43,27 @@ def _parse_bool(value: str | None, default: bool) -> bool:
 
 
 def load_configurations(csv_path: str | Path) -> list[MetadataExportConfig]:
+    """Load export configurations from a CSV file path.
+
+    Parameters:
+        csv_path: Filesystem path to the configuration CSV.
+
+    Returns:
+        Collection of export configuration records.
+
+    Notes:
+        Lines beginning with '#' are treated as comments and ignored.
+    """
     path = Path(csv_path)
     if not path.exists():
         raise FileNotFoundError(f"Configuration CSV not found: {path}")
 
     configurations: list[MetadataExportConfig] = []
     with path.open(newline="", encoding="utf-8") as handle:
-        reader = csv.DictReader(handle)
+        non_comment_lines = (
+            line for line in handle if not line.lstrip().startswith("#")
+        )
+        reader = csv.DictReader(non_comment_lines)
         if reader.fieldnames is None:
             raise ValueError("Configuration CSV must define column headers.")
 

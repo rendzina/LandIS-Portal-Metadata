@@ -1,9 +1,16 @@
+"""
+Project: LandIS Portal
+Institution: Cranfield University
+Author: Professor Stephen Hallett
+
+Command-line interface for exporting LandIS metadata to ISO 19139 XML.
+"""
+
 from __future__ import annotations
 
 import argparse
 import logging
 from pathlib import Path
-from typing import Iterable
 
 from . import config_loader, db, xml_builder
 
@@ -16,6 +23,11 @@ LOGGER = logging.getLogger("metadata_exporter")
 
 
 def parse_arguments() -> argparse.Namespace:
+    """Define and parse command-line options for the exporter.
+
+    Returns:
+        Parsed argument namespace ready for downstream consumption.
+    """
     parser = argparse.ArgumentParser(
         description="Export LandIS metadata records to ISO 19139 XML files."
     )
@@ -43,10 +55,26 @@ def parse_arguments() -> argparse.Namespace:
 
 
 def ensure_output_directory(path: Path) -> None:
+    """Ensure the output directory exists before writing files.
+
+    Parameters:
+        path: Directory path intended to hold generated XML files.
+
+    Returns:
+        None. The directory is created if required.
+    """
     path.mkdir(parents=True, exist_ok=True)
 
 
 def build_logger(verbose: bool = False) -> None:
+    """Configure the module logger for console output.
+
+    Parameters:
+        verbose: When True, enable debug-level logging output.
+
+    Returns:
+        None. Global logger is configured in-place.
+    """
     handler = logging.StreamHandler()
     formatter = logging.Formatter(
         "%(asctime)s [%(levelname)s] %(name)s: %(message)s",
@@ -58,6 +86,17 @@ def build_logger(verbose: bool = False) -> None:
 
 
 def load_environment(env_file: Path | None) -> None:
+    """Load environment variables from an optional .env file.
+
+    Parameters:
+        env_file: Path to a dotenv file; ignored when None or missing.
+
+    Returns:
+        None. Environment variables are loaded for the current process.
+
+    Raises:
+        ModuleNotFoundError: When python-dotenv is unavailable.
+    """
     if env_file is None:
         return
     if not env_file.exists():
@@ -74,6 +113,16 @@ def load_environment(env_file: Path | None) -> None:
 def export_metadata_records(
     configuration_path: Path, output_directory: Path, dry_run: bool = False
 ) -> list[Path]:
+    """Export metadata records to XML based on configuration entries.
+
+    Parameters:
+        configuration_path: CSV file describing metadata identifiers to export.
+        output_directory: Destination directory for generated XML files.
+        dry_run: When True, skip file writing while exercising data retrieval.
+
+    Returns:
+        List of paths for the XML files written during the session.
+    """
     configs = config_loader.load_configurations(configuration_path)
     LOGGER.info("Loaded %s metadata configurations from %s", len(configs), configuration_path)
 
@@ -103,6 +152,7 @@ def export_metadata_records(
 
 
 def main() -> None:
+    """Entry point for command-line execution of the exporter."""
     args = parse_arguments()
     build_logger()
     load_environment(Path(args.env_file) if args.env_file else None)
