@@ -152,6 +152,52 @@ def fetch_group(connection: "Connection", group_id: str) -> dict[str, Any] | Non
     return rows[0] if rows else None
 
 
+def fetch_contacts_for_ids(
+    connection: "Connection", contact_ids: list[int | str]
+) -> dict[int | str, dict[str, Any]]:
+    """Fetch contact records for a collection of identifiers.
+
+    Parameters:
+        connection: Active Oracle database connection.
+        contact_ids: Identifiers requiring contact lookups.
+
+    Returns:
+        Mapping from contact identifier to contact detail dictionaries.
+    """
+    if not contact_ids:
+        return {}
+
+    sql = """
+        SELECT
+            CONTACT_ID,
+            CONTACT_ROLE,
+            INDIVIDUAL_NAME,
+            ORGANISATION_NAME,
+            POSITION_NAME,
+            VOICE_PHONE,
+            FACSIMILE_PHONE,
+            DELIVERY_POINT,
+            CITY,
+            ADMINISTRATIVE_AREA,
+            POSTAL_CODE,
+            COUNTRY,
+            ELECTRONIC_MAIL_ADDRESS,
+            HOURS_OF_SERVICE,
+            CONTACT_INSTRUCTIONS
+        FROM ADMIN.METADATA_CONTACTS
+        WHERE CONTACT_ID IN ({placeholders})
+    """
+    placeholders = ", ".join([f":id{i}" for i in range(len(contact_ids))])
+    formatted_sql = sql.format(placeholders=placeholders)
+    bindings = {f"id{i}": contact_id for i, contact_id in enumerate(contact_ids)}
+
+    with connection.cursor() as cursor:
+        cursor.execute(formatted_sql, bindings)
+        rows = _rows_to_dicts(cursor)
+
+    return {row["contact_id"]: row for row in rows}
+
+
 def fetch_citation(
     connection: "Connection", citation_id: str
 ) -> dict[str, Any] | None:
@@ -394,6 +440,29 @@ def fetch_metadata_bundle(
     if main.get("citation_id"):
         main_citation = fetch_citation(connection, main["citation_id"])
     bundle["citation"] = main_citation
+
+    bundle["group_contact"] = None
+    bundle["metadata_contact"] = None
+
+    contact_ids: list[int | str] = []
+    if group:
+        if group.get("contact_id") is not None:
+            contact_ids.append(group["contact_id"])
+        if group.get("metadata_contact_id") is not None:
+            contact_ids.append(group["metadata_contact_id"])
+
+    contact_lookup: dict[int | str, dict[str, Any]] = {}
+    if contact_ids:
+        unique_ids = list(dict.fromkeys(contact_ids))
+        contact_lookup = fetch_contacts_for_ids(connection, unique_ids)
+
+    if group:
+        if group.get("contact_id") is not None:
+            bundle["group_contact"] = contact_lookup.get(group["contact_id"])
+        if group.get("metadata_contact_id") is not None:
+            bundle["metadata_contact"] = contact_lookup.get(
+                group["metadata_contact_id"]
+            )
 
     bundle["attributes"] = fetch_attributes(connection, metadata_id)
 

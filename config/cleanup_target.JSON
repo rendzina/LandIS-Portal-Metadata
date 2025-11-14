@@ -1,0 +1,18 @@
+[
+    {
+        "table": "ADMIN.METADATA_MAIN",
+        "column": "TITLE",
+        "identifier": "METADATA_ID"
+    },
+    {
+        "table": "ADMIN.METADATA_MAIN",
+        "column": "ABSTRACT",
+        "identifier": "METADATA_ID"
+    },
+    {
+        "table": "ADMIN.METADATA_ATTRIBUTES",
+        "column": "ATTRIBUTE_DEFINITION",
+        "identifier": "METADATA_ID"
+    }
+]
+

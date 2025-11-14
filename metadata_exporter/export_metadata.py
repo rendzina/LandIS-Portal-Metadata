@@ -140,6 +140,7 @@ def export_metadata_records(
             )
 
             tree = xml_builder.build_metadata_tree(bundle)
+            xml_builder.format_tree_for_output(tree)
             if dry_run:
                 LOGGER.debug("Dry-run enabled; skipping write for %s", config.metadata_id)
                 continue

@@ -54,6 +54,47 @@ def _character_string(text: str | None) -> ET.Element:
     return element
 
 
+def format_tree_for_output(tree: ET.ElementTree, space: str = "    ") -> None:
+    """Apply indentation to the tree so the serialised XML remains readable.
+
+    Parameters:
+        tree: XML ElementTree slated for serialisation to disk.
+        space: Whitespace sequence used per indentation level.
+
+    Returns:
+        None. The tree is mutated in place to include indentation.
+    """
+    try:
+        ET.indent(tree, space=space)  # type: ignore[attr-defined]
+    except AttributeError:
+        _indent_fallback(tree.getroot(), level=0, space=space)
+    root = tree.getroot()
+    if root is not None and (root.tail is None or root.tail.strip() == ""):
+        root.tail = "\n"
+
+
+def _indent_fallback(element: ET.Element | None, level: int, space: str) -> None:
+    """Recursively indent the element tree for Python versions lacking ET.indent."""
+    if element is None:
+        return
+
+    indent = "\n" + space * level
+    children = list(element)
+
+    if children:
+        if not element.text or not element.text.strip():
+            element.text = indent + space
+        for child in children:
+            _indent_fallback(child, level + 1, space)
+            if child.tail is None or not child.tail.strip():
+                child.tail = indent + space
+        if children[-1].tail is None or not children[-1].tail.strip():
+            children[-1].tail = indent
+    else:
+        if level and (element.tail is None or not element.tail.strip()):
+            element.tail = indent
+
+
 def _optional_element(parent: ET.Element, prefix: str, tag: str, text: str | None) -> None:
     """Attach a text element when text is supplied, otherwise skip creation.
 
@@ -221,27 +262,74 @@ def _build_contact(root: ET.Element, bundle: dict[str, Any], options: BuildOptio
     contact_element = ET.SubElement(root, _qn("gmd", "contact"))
     responsible_party = ET.SubElement(contact_element, _qn("gmd", "CI_ResponsibleParty"))
 
-    if options.contact_name:
-        individual_name = ET.SubElement(responsible_party, _qn("gmd", "individualName"))
-        individual_name.append(_character_string(options.contact_name))
+    contact_details = bundle.get("metadata_contact") or bundle.get("group_contact") or {}
 
-    if options.contact_organisation:
-        organisation = ET.SubElement(responsible_party, _qn("gmd", "organisationName"))
-        organisation.append(_character_string(options.contact_organisation))
+    contact_name = options.contact_name or contact_details.get("individual_name")
+    contact_organisation = (
+        options.contact_organisation or contact_details.get("organisation_name")
+    )
+    contact_email = options.contact_email or contact_details.get(
+        "electronic_mail_address"
+    )
+    position_name = contact_details.get("position_name")
 
-    if options.contact_email:
+    _optional_element(responsible_party, "gmd", "individualName", contact_name)
+    _optional_element(responsible_party, "gmd", "organisationName", contact_organisation)
+    _optional_element(responsible_party, "gmd", "positionName", position_name)
+
+    voice_phone = contact_details.get("voice_phone")
+    facsimile_phone = contact_details.get("facsimile_phone")
+    delivery_point = contact_details.get("delivery_point")
+    city = contact_details.get("city")
+    administrative_area = contact_details.get("administrative_area")
+    postal_code = contact_details.get("postal_code")
+    country = contact_details.get("country")
+    hours_of_service = contact_details.get("hours_of_service")
+    contact_instructions = contact_details.get("contact_instructions")
+
+    has_phone_details = bool(voice_phone or facsimile_phone)
+    has_address_details = bool(
+        delivery_point or city or administrative_area or postal_code or country
+    )
+    has_additional_contact = bool(
+        contact_email or hours_of_service or contact_instructions
+    )
+
+    if has_phone_details or has_address_details or has_additional_contact:
         contact_info = ET.SubElement(responsible_party, _qn("gmd", "contactInfo"))
         ci_contact = ET.SubElement(contact_info, _qn("gmd", "CI_Contact"))
-        address = ET.SubElement(ci_contact, _qn("gmd", "address"))
-        ci_address = ET.SubElement(address, _qn("gmd", "CI_Address"))
-        email = ET.SubElement(ci_address, _qn("gmd", "electronicMailAddress"))
-        email.append(_character_string(options.contact_email))
+
+        if has_phone_details:
+            phone = ET.SubElement(ci_contact, _qn("gmd", "phone"))
+            ci_telephone = ET.SubElement(phone, _qn("gmd", "CI_Telephone"))
+            _optional_element(ci_telephone, "gmd", "voice", voice_phone)
+            _optional_element(ci_telephone, "gmd", "facsimile", facsimile_phone)
+
+        if has_address_details or contact_email:
+            address = ET.SubElement(ci_contact, _qn("gmd", "address"))
+            ci_address = ET.SubElement(address, _qn("gmd", "CI_Address"))
+            _optional_element(ci_address, "gmd", "deliveryPoint", delivery_point)
+            _optional_element(ci_address, "gmd", "city", city)
+            _optional_element(
+                ci_address, "gmd", "administrativeArea", administrative_area
+            )
+            _optional_element(ci_address, "gmd", "postalCode", postal_code)
+            _optional_element(ci_address, "gmd", "country", country)
+            if contact_email:
+                email = ET.SubElement(ci_address, _qn("gmd", "electronicMailAddress"))
+                email.append(_character_string(contact_email))
+
+        _optional_element(ci_contact, "gmd", "hoursOfService", hours_of_service)
+        _optional_element(
+            ci_contact, "gmd", "contactInstructions", contact_instructions
+        )
 
     role = ET.SubElement(responsible_party, _qn("gmd", "role"))
     role_code = ET.SubElement(role, _qn("gmd", "CI_RoleCode"))
     role_code.set("codeList", "http://www.isotc211.org/2005/resources/codeList.xml#CI_RoleCode")
-    role_code.set("codeListValue", "pointOfContact")
-    role_code.text = "pointOfContact"
+    role_value = contact_details.get("contact_role") or "pointOfContact"
+    role_code.set("codeListValue", role_value)
+    role_code.text = role_value
 
 
 def _build_date_stamp(root: ET.Element, date_stamp: date | None) -> None:

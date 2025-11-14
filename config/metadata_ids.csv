@@ -2,7 +2,7 @@
 # Institution: Cranfield University
 # Author: Professor Stephen Hallett
 # config/metadata_ids.csv - Metadata export configuration entries
-
 metadata_id,include_sources,include_keywords
 HORIZONS,true,true
 NATMAP5000,true,true
+HORIZON_HYDRAULICS,true,true
