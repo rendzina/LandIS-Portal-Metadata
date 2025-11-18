@@ -4,15 +4,12 @@ Institution: Cranfield University
 Author: Professor Stephen Hallett
 
 Utility for processing source database metadata tables:
-- normalising quotation marks across Oracle metadata tables.
-- updating metadata_ids to match the source database.
+- Normalising quotation marks across Oracle metadata tables.
+- Updating metadata IDs to match the source database.
 
- usage: python -m metadata_exporter.cleanup --config config/cleanup_target.JSON
- options:
-   --config CONFIG       Path to JSON configuration file describing cleanup targets.
-   --env-file ENV_FILE   Optional path to a .env file containing Oracle credentials.
-   --commit              Apply updates instead of running in dry-run mode.
-   --verbose             Enable verbose logging for diagnostic purposes.
+This module provides command-line tools for cleaning up mis-encoded punctuation
+in metadata fields, converting curly quotation marks and related Unicode glyphs
+to plain ASCII equivalents.
 """
 
 from __future__ import annotations

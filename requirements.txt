@@ -1,0 +1,15 @@
+# Project: LandIS Portal
+# Institution: Cranfield University
+# Author: Professor Stephen Hallett
+#
+# Python dependencies for the metadata exporter package
+
+# Oracle database connectivity
+oracledb>=1.0.0
+
+# Environment variable management
+python-dotenv>=1.0.0
+
+# Testing (optional, for development)
+# pytest>=7.0.0
+

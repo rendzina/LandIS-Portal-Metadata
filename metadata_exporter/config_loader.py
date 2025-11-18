@@ -15,7 +15,13 @@ import csv
 
 @dataclass(frozen=True, slots=True)
 class MetadataExportConfig:
-    """Configuration for exporting a single metadata record."""
+    """Configuration for exporting a single metadata record.
+
+    Attributes:
+        metadata_id: Unique identifier for the metadata record to export.
+        include_sources: Whether to include source lineage information in the export.
+        include_keywords: Whether to include keyword metadata in the export.
+    """
 
     metadata_id: str
     include_sources: bool = True
