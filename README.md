@@ -15,6 +15,156 @@ This package provides command-line tools for:
 - Cleaning source database data, normalising quotation marks and special characters in metadata fields
 - Managing metadata export configurations, controlled via CSV files
 
+## System Architecture
+
+The following diagram illustrates the high-level architecture and data flow of the metadata exporter system:
+
+```mermaid
+flowchart TB
+    subgraph Input["Input Configuration"]
+        CSV["CSV Config<br/>(metadata_ids.csv)"]
+        ENV[".env File<br/>(Oracle Credentials)"]
+        JSON["JSON Config<br/>(cleanup_target.JSON)"]
+    end
+
+    subgraph CLI["Command-Line Interface"]
+        EXPORT["export_metadata.py<br/>(Main Export CLI)"]
+        CLEANUP["cleanup.py<br/>(Quote Cleanup Utility)"]
+    end
+
+    subgraph Core["Core Modules"]
+        CONFIG_LOADER["config_loader.py<br/>(CSV Parser)"]
+        DB["db.py<br/>(Database Access)"]
+        XML_BUILDER["xml_builder.py<br/>(ISO 19139 Builder)"]
+    end
+
+    subgraph Oracle["Oracle Database"]
+        MAIN["METADATA_MAIN"]
+        GROUPS["METADATA_GROUPS"]
+        CONTACTS["METADATA_CONTACTS"]
+        CITATIONS["METADATA_CITATIONS"]
+        ATTRIBUTES["METADATA_ATTRIBUTES"]
+        KEYWORDS["METADATA_KEYWORDS"]
+        SOURCES["METADATA_SOURCES"]
+    end
+
+    subgraph Output["Output"]
+        XML_FILES["ISO 19139 XML Files<br/>(output/)"]
+    end
+
+    CSV --> CONFIG_LOADER
+    ENV --> DB
+    JSON --> CLEANUP
+    
+    CONFIG_LOADER --> EXPORT
+    EXPORT --> DB
+    EXPORT --> XML_BUILDER
+    CLEANUP --> DB
+    
+    DB --> MAIN
+    DB --> GROUPS
+    DB --> CONTACTS
+    DB --> CITATIONS
+    DB --> ATTRIBUTES
+    DB --> KEYWORDS
+    DB --> SOURCES
+    
+    XML_BUILDER --> XML_FILES
+    
+    style CSV fill:#e1f5ff
+    style ENV fill:#e1f5ff
+    style JSON fill:#e1f5ff
+    style EXPORT fill:#fff4e1
+    style CLEANUP fill:#fff4e1
+    style XML_FILES fill:#e8f5e9
+    style Oracle fill:#fce4ec
+```
+
+### Export Workflow
+
+The metadata export process follows these steps:
+
+```mermaid
+flowchart LR
+    START([Start Export]) --> LOAD_CONFIG[Load CSV Configuration]
+    LOAD_CONFIG --> LOAD_ENV[Load Environment Variables]
+    LOAD_ENV --> CONNECT[Connect to Oracle DB]
+    CONNECT --> LOOP{For Each<br/>Metadata ID}
+    LOOP --> FETCH[Fetch Metadata Bundle]
+    FETCH --> BUILD[Build ISO 19139 XML Tree]
+    BUILD --> FORMAT[Format & Indent XML]
+    FORMAT --> DRY{Dry Run?}
+    DRY -->|Yes| LOG[Log Output]
+    DRY -->|No| WRITE[Write XML File]
+    LOG --> NEXT{More IDs?}
+    WRITE --> NEXT
+    NEXT -->|Yes| LOOP
+    NEXT -->|No| END([Export Complete])
+    
+    style START fill:#c8e6c9
+    style END fill:#c8e6c9
+    style DRY fill:#fff9c4
+```
+
+### Cleanup Workflow
+
+The quote cleanup process follows these steps:
+
+```mermaid
+flowchart LR
+    START([Start Cleanup]) --> LOAD_JSON[Load JSON Configuration]
+    LOAD_JSON --> LOAD_ENV[Load Environment Variables]
+    LOAD_ENV --> CONNECT[Connect to Oracle DB]
+    CONNECT --> LOOP{For Each<br/>Target Table/Column}
+    LOOP --> SCAN[Scan Rows for<br/>Smart Quotes]
+    SCAN --> NORMALISE[Normalise Quotes]
+    NORMALISE --> LOG[Log Proposed Changes]
+    LOG --> COMMIT{Commit Mode?}
+    COMMIT -->|No| ROLLBACK[Rollback Transaction]
+    COMMIT -->|Yes| UPDATE[Update Database]
+    ROLLBACK --> NEXT{More Targets?}
+    UPDATE --> NEXT
+    NEXT -->|Yes| LOOP
+    NEXT -->|No| END([Cleanup Complete])
+    
+    style START fill:#c8e6c9
+    style END fill:#c8e6c9
+    style COMMIT fill:#fff9c4
+```
+
+### Data Flow: Metadata Bundle Assembly
+
+When exporting a metadata record, the system assembles a comprehensive bundle from multiple database tables:
+
+```mermaid
+flowchart TD
+    METADATA_ID[Metadata ID] --> FETCH_MAIN[Fetch Main Record]
+    FETCH_MAIN --> CHECK_GROUP{Group ID<br/>Present?}
+    CHECK_GROUP -->|Yes| FETCH_GROUP[Fetch Group Record]
+    CHECK_GROUP -->|No| SKIP_GROUP[Skip Group]
+    FETCH_GROUP --> FETCH_CONTACTS[Fetch Contact Records]
+    SKIP_GROUP --> FETCH_CITATION
+    FETCH_MAIN --> CHECK_CITATION{Citation ID<br/>Present?}
+    CHECK_CITATION -->|Yes| FETCH_CITATION[Fetch Citation]
+    CHECK_CITATION -->|No| SKIP_CITATION[Skip Citation]
+    FETCH_CITATION --> FETCH_ATTRIBUTES[Fetch Attributes]
+    FETCH_CONTACTS --> FETCH_ATTRIBUTES
+    SKIP_CITATION --> FETCH_ATTRIBUTES
+    FETCH_ATTRIBUTES --> CHECK_KEYWORDS{Include<br/>Keywords?}
+    CHECK_KEYWORDS -->|Yes| FETCH_KEYWORDS[Fetch Keywords]
+    CHECK_KEYWORDS -->|No| SKIP_KEYWORDS[Skip Keywords]
+    FETCH_KEYWORDS --> CHECK_SOURCES{Include<br/>Sources?}
+    SKIP_KEYWORDS --> CHECK_SOURCES
+    CHECK_SOURCES -->|Yes| FETCH_SOURCES[Fetch Sources]
+    CHECK_SOURCES -->|No| SKIP_SOURCES[Skip Sources]
+    FETCH_SOURCES --> FETCH_SOURCE_CITATIONS[Fetch Source Citations]
+    FETCH_SOURCE_CITATIONS --> BUNDLE[Complete Metadata Bundle]
+    SKIP_SOURCES --> BUNDLE
+    
+    style BUNDLE fill:#c8e6c9
+    style METADATA_ID fill:#e1f5ff
+```
+
 ## Prerequisites
 
 - Python 3.11 or newer
